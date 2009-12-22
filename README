@@ -1,0 +1,7 @@
+The script will automatically patch and then run the install process for VMware
+Server on Ubuntu machines.
+
+To run the script either launch it from the same folder that contains the VMware
+Server archive or supply it the path to this folder. Be careful to run the
+script as a superuser and take care not to supply a folder path that contains
+spaces in it.

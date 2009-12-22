@@ -1,11 +1,10 @@
 #!/bin/bash
 
 ###############################################################################
-# @author Radu Cotescu                      				      #
-# @version 1.0 Thu Oct 30 04:09:00 EEST 2009                                  #
+# @author Radu Cotescu                                                        #
 #                                                                             #
 # For further details visit:                                                  #
-# 	http://radu.cotescu.com/?p=948                                        #
+#   http://radu.cotescu.com/?p=948                                            #
 #                                                                             #
 # This script will help you install VMWare Server 2.0.x on Ubuntu 9.10.       #
 # Based on a script from http://communities.vmware.com/thread/215985          #
@@ -75,8 +74,6 @@ check_usage() {
 }
 
 install() {
-	echo "Downloading patch file..."
-	wget http://codebin.cotescu.com/vmware/$PATCH -O "$VMWARE_HOME/$PATCH" 2> /dev/null
 	LINUX_HEADERS="linux-headers-`uname -r`"
 	check_headers=`dpkg-query -W -f='${Status} ${Version}\n' $LINUX_HEADERS 2> /dev/null | egrep "^install"`
 	if [[ -z $check_headers ]]; then
@@ -100,12 +97,17 @@ install() {
 		echo "Extracting the contents of $VMWARE_ARCHIVE"
 		tar zxf "$VMWARE_HOME/$VMWARE_ARCHIVE" -C "$VMWARE_HOME"
 	fi
-	echo "Checking patch download and archives from the extracted folders..."
+	echo "Checking patch existence..."
 	if [ ! -r "$VMWARE_HOME/$PATCH" ]; then
-		echo "The download of $PATCH from http://codebin.cotescu.com/vmware/ failed!"
-		echo "Check your internet connection. :("
-		exit 1
+        echo "Downloading patch file..."
+	    wget http://codebin.cotescu.com/vmware/$PATCH -O "$VMWARE_HOME/$PATCH"
+        if [ $? != 0 ]; then
+    		echo "The download of $PATCH from http://codebin.cotescu.com/vmware/ failed!"
+	    	echo "Check your internet connection. :("
+	    	exit 1
+        fi
 	fi
+    echo "Checking archives from the extracted folders..."
 	TARS=`find "$MODULES_SOURCE" -maxdepth 1 -name '*.tar'`
 	if [ ! "$TARS" ]; then
 		echo ".tar files from $MODULES_SOURCE appear to be missing!"
@@ -202,4 +204,3 @@ check_usage params param
 install
 clean
 exit 0
-
