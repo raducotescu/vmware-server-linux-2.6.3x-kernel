@@ -2,9 +2,10 @@
 
 ###############################################################################
 # @author Radu Cotescu                                                        #
+# @version 1.1 Mon Jan 18 15:24:39 EET 2010                                   #
 #                                                                             #
 # For further details visit:                                                  #
-#   http://radu.cotescu.com/?p=948                                            #
+# 	http://radu.cotescu.com/?p=1095                                       #
 #                                                                             #
 # This script will help you install VMWare Server 2.0.x on Ubuntu 9.10.       #
 # Based on a script from http://communities.vmware.com/thread/215985          #
@@ -17,29 +18,36 @@
 ###############################################################################
 
 VMWARE_HOME=$1
-PATCH="vmware-server-2.0.x_x64-modules-2.6.30.4-fix.patch"
+PATCH="vmware-server-2.0.2-203138-update.patch"
 
 display_usage() {
-	errorMessage=$1
-	if [[ ! -z $errorMessage ]]; then
-		echo "Error message: $errorMessage"
-	fi
 	echo "This script must be run with super-user privileges."
-	echo -e "Usage:\n./vmware-server-2.0.x-kernel-2.6.31-14-install.sh [PATH_TO_VMWARE_ARCHIVE]"
-	echo "If you do not specify the PATH_TO_VMWARE_ARCHIVE the script will scan the current folder"
+	echo -e "\nUsage:\n./vmware-server-2.0.x-kernel-2.6.31-14-install.sh [PATH TO VMWARE ARCHIVE]\n"
+	echo "If you do not specify the PATH the script will scan the current folder"
 	echo "for VMware server archive and if doesn't find anything it will exit."
-	echo "Take care so that the PATH_TO_VMWARE_ARCHIVE doesn't contain any spaces."
 	exit 1
+}
+
+check_usage() {
+	if [ ! $params -le 1 ]
+	then
+		display_usage
+	fi
+	if [[ ($param == "--help") ||  $param == "-h" ]]
+	then
+		display_usage
+	fi
 }
 
 check_user() {
 	if [[ $USER != "root" ]]; then
-		display_usage "You do not seem to be root or to be in the sudo-ers list!"
+		echo "This script must be run as root!"
+		exit 1
 	fi
 }
 
 set_workspace() {
-	if [[ -z $VMWARE_HOME ]] ; then
+	if [[ -z $VMWARE_HOME ]]; then
 		VMWARE_HOME="`pwd`"
 	fi
 	VMWARE_ARCHIVE=`ls "$VMWARE_HOME" 2> /dev/null | egrep "^(VMware-server-2.0.[0-9]-)[0-9]*.[A-Za-z0-9_]*.tar.gz"`
@@ -49,65 +57,178 @@ set_workspace() {
 
 check_archive() {
 	if [[ -z $VMWARE_ARCHIVE ]]; then
-		display_usage "There is no archive containing VMware Server in the path you indicated!"
+		echo -e "There is no archive containing VMware Server in the path you indicated!\n"
+		exit 1
 	else
 		echo -e "You have VMware Server archive: \n\t$VMWARE_ARCHIVE"
 	fi
 }
 
-check_usage() {
-	if [ ! $params -le 1 ]
-	then
-		display_usage "You have supplied more parameters than needed!"
+check_distro() {
+	ubuntu=`cat /etc/*-release | grep Ubuntu`
+	fedora=`cat /etc/*-release | grep Fedora`
+	suse=`cat /etc/*-release | grep SUSE`
+	if [[ ! -z $ubuntu ]] ; then
+		distro="ubuntu"
+	elif [[ ! -z $fedora ]] ; then
+		distro="fedora"
+	elif [[ ! -z $suse ]] ; then
+		distro="suse"
 	fi
-	if [[ ($param == "--help") ||  $param == "-h" ]]
-	then
-		display_usage
-	fi
-	check_user
-	path_spaces_check=`echo $VMWARE_HOME | grep " "`
-	if [[ ! -z $path_spaces_check ]]
-	then
-		display_usage "The path where the VMware Server archive is located should not contain spaces in it!"
-	fi
-	check_archive
 }
 
-install() {
+packageError() {
+	if [[ $1 -ne 0 ]]; then
+		echo "I am unable to install the before mentioned package..."
+		echo "Please install the required package and rerun the script..."
+		exit 1
+	fi
+}
+
+resolveDepsUbuntu() {
+	echo "Checking for needed packages on Ubuntu"
+	check_wget=`dpkg-query -W -f='${Status} ${Version}\n' wget 2> /dev/null | egrep "^install"`
+        if [[ -z $check_wget ]]; then
+                echo "Installing wget package..."
+                apt-get -y install wget
+                packageError $?
+        else echo "You do have the wget package..."
+	fi
 	LINUX_HEADERS="linux-headers-`uname -r`"
 	check_headers=`dpkg-query -W -f='${Status} ${Version}\n' $LINUX_HEADERS 2> /dev/null | egrep "^install"`
 	if [[ -z $check_headers ]]; then
-		echo Installing linux-headers-`uname -r` package...
+		echo "Installing linux-headers-`uname -r` package..."
 		apt-get -y install linux-headers-`uname -r`
+		packageError $?
 	else echo "You do have the $LINUX_HEADERS package..."
 	fi
 	check_build=`dpkg-query -W -f='${Status} ${Version}\n' build-essential 2> /dev/null | egrep "^install"`
 	if [[ -z $check_build ]]; then
 		echo "Installing build-essential package..."
 		apt-get -y install build-essential
+		packageError $?
 	else echo "You do have the build-essential package..."
 	fi
 	check_patch=`dpkg-query -W -f='${Status} ${Version}\n' "patch" 2> /dev/null | egrep "^install"`
 	if [[ -z $check_patch ]]; then
 		echo "Installing patch package..."
 		apt-get -y install patch
+		packageError $?
 	else echo "You do have the patch package..."
 	fi
+}
+
+resolveDepsFedora() {
+	echo "Checking for needed packages on Fedora"
+	if [[ -z `rpm -qa wget` ]]; then
+                echo "Installing wget..."
+                yum -y install wget
+                packageError $?
+        else echo "You do have the wget package..."
+	fi
+	if [[ -z `rpm -qa xinetd` ]]; then
+                echo "Installing xinetd..."
+                yum -y install xinetd
+                packageError $?
+        else echo "You do have the xinetd package..."
+	fi
+	if [[ -z `rpm -qa kernel-headers` ]]; then
+		echo "Installing kernel-headers..."
+		yum -y install kernel-headers
+		packageError $?
+	else echo "You do have the kernel-headers package..."
+	fi
+	if [[ -z `rpm -qa kernel-devel` ]]; then
+		echo "Installing kernel-devel..."
+		yum -y install kernel-devel
+		packageError $?
+	else echo "You do have the kernel-devel package..."
+	fi
+	if [[ -z `rpm -qa gcc` ]]; then
+		echo "Installing gcc..."
+		yum -y install gcc
+		packageError $?
+	else echo "You do have the gcc package..."
+	fi
+	if [[ -z `rpm -qa patch` ]]; then
+		echo "Installing patch..."
+		yum -y install patch
+		packageError $?
+	else echo "You do have the patch package..."
+	fi
+	if [[ -z `rpm -qa make` ]]; then
+		echo "Installing make..."
+		yum -y install make
+		packageError $?
+	else echo "You do have the make package..."
+	fi
+}
+
+resolveDepsSuse() {
+	echo "Checking for needed packages on SUSE"
+	if [[ -z `rpm -qa wget` ]]; then
+                echo "Installing wget..."
+                zypper --non-interactive install wget
+                packageError $?
+        else echo "You do have the wget package..."
+	fi
+	if [[ -z `rpm -qa linux-kernel-headers` ]]; then
+		echo "Installing kernel-headers..."
+		zypper --non-interactive install kernel-headers
+		packageError $?
+	else echo "You do have the kernel-headers package..."
+	fi
+	if [[ -z `rpm -qa kernel-source` ]]; then
+		echo "Installing kernel-source..."
+		zypper --non-interactive install kernel-devel
+		packageError $?
+	else echo "You do have the kernel-devel package..."
+	fi
+	if [[ -z `rpm -qa gcc` ]]; then
+		echo "Installing gcc..."
+		zypper --non-interactive install gcc
+		packageError $?
+	else echo "You do have the gcc package..."
+	fi
+	if [[ -z `rpm -qa patch` ]]; then
+		echo "Installing patch..."
+		zypper --non-interactive install patch
+		packageError $?
+	else echo "You do have the patch package..."
+	fi
+	if [[ -z `rpm -qa make` ]]; then
+		echo "Installing make..."
+		zypper --non-interactive install make
+		packageError $?
+	else echo "You do have the make package..."
+	fi
+}
+
+install() {
+	case $distro in
+		"ubuntu")
+		resolveDepsUbuntu
+		;;
+
+		"fedora")
+		resolveDepsFedora
+		;;
+
+		"suse")
+		resolveDepsSuse
+	esac
+	echo "Downloading patch file..."
+	wget http://codebin.cotescu.com/vmware/$PATCH -O "$VMWARE_HOME/$PATCH"
 	if [[ ! -e "$VMWARE_HOME/vmware-server-distrib" ]]; then
-		echo "Extracting the contents of $VMWARE_ARCHIVE"
+		echo Extracting the contents of $VMWARE_ARCHIVE
 		tar zxf "$VMWARE_HOME/$VMWARE_ARCHIVE" -C "$VMWARE_HOME"
 	fi
-	echo "Checking patch existence..."
+	echo "Checking patch download and archives from the extracted folders..."
 	if [ ! -r "$VMWARE_HOME/$PATCH" ]; then
-        echo "Downloading patch file..."
-	    wget http://codebin.cotescu.com/vmware/$PATCH -O "$VMWARE_HOME/$PATCH"
-        if [ $? != 0 ]; then
-    		echo "The download of $PATCH from http://codebin.cotescu.com/vmware/ failed!"
-	    	echo "Check your internet connection. :("
-	    	exit 1
-        fi
+		echo "The download of $PATCH from http://codebin.cotescu.com/vmware/ failed!"
+		echo "Check your internet connection. :("
+		exit 1
 	fi
-    echo "Checking archives from the extracted folders..."
 	TARS=`find "$MODULES_SOURCE" -maxdepth 1 -name '*.tar'`
 	if [ ! "$TARS" ]; then
 		echo ".tar files from $MODULES_SOURCE appear to be missing!"
@@ -134,14 +255,14 @@ install() {
 		fi
 	done
 	echo "Testing patch..."
-	patch --dry-run -N -p1 --directory="$MODULES_SOURCE" -s < "$VMWARE_HOME/$PATCH"
+	patch --dry-run -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$VMWARE_HOME/$PATCH"
 	RESULT=$?
 	if [ "0" != "$RESULT" ]; then
 		echo "The patch cannot be applied. :("
 		exit 1
 	fi
 	echo "Applying patch..."
-	patch -N -p1 --directory="$MODULES_SOURCE" -s < "$VMWARE_HOME/$PATCH"
+	patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$VMWARE_HOME/$PATCH"
 	RESULT=$?
 	if [ "0" != "$RESULT" ]; then
 		echo "A problem occured with the patch while it was being applied. :("
@@ -192,15 +313,27 @@ clean() {
 	echo "Housekeeping..."
 	rm -rf $VMWARE_HOME/vmware-server-distrib "$VMWARE_HOME/$PATCH"
 	echo "Thank you for using the script!"
-	echo "Author: Radu Cotescu"
-	echo "http://radu.cotescu.com"
+	echo -e "Patch provided by: \n\tRamon de Carvalho Valle"
+	echo -e "\thttp://risesecurity.org/"
+	echo -e "Script author: \n\tRadu Cotescu"
+	echo -e "\thttp://radu.cotescu.com"
 }
-
-
-set_workspace
 params=$#
 param=$1
 check_usage params param
+check_user
+set_workspace
+check_archive
+check_distro
 install
+
+if [[ $distro == "fedora" ]]; then
+	echo "On Fedora you must follow these steps in order to make VMware Server to work properly:"
+	echo -e "\t1. edit /etc/services and replace the entry located on TCP/902 port with vmware-authd"
+	echo -e "\t2. set SELinux to permissive or even disable it by editing the /etc/selinux/config file"
+	echo -e "\t3. reboot your system"
+fi
+
 clean
 exit 0
+

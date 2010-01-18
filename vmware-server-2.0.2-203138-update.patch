@@ -1,0 +1,361 @@
+diff -urN a/lib/modules/source/vmci-only/Makefile b/lib/modules/source/vmci-only/Makefile
+--- a/lib/modules/source/vmci-only/Makefile	2009-10-20 22:31:34.000000000 -0200
++++ b/lib/modules/source/vmci-only/Makefile	2010-01-01 00:00:00.000000000 -0200
+@@ -113,12 +113,12 @@
+ 
+ vm_check_build = $(shell if $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \
+ 	$(CPPFLAGS) $(CFLAGS) $(CFLAGS_KERNEL) \
+-	$(EXTRA_CFLAGS) -Iinclude2/asm/mach-default \
++	$(EXTRA_CFLAGS) -I$(HEADER_DIR) -Iinclude2/asm/mach-default \
+ 	-DKBUILD_BASENAME=\"$(DRIVER)\" \
+ 	-Werror -S -o /dev/null -xc $(1) \
+ 	> /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi)
+ 
+-CC_WARNINGS := -Wall -Wstrict-prototypes
++CC_WARNINGS := -Wall -Wstrict-prototypes -Wno-unused -Wno-uninitialized -Wno-undef
+ CC_OPTS := $(GLOBAL_DEFS) $(CC_WARNINGS) -DVMW_USING_KBUILD
+ ifdef VMX86_DEVEL
+ CC_OPTS += -DVMX86_DEVEL
+diff -urN a/lib/modules/source/vmmon-only/common/vmx86.c b/lib/modules/source/vmmon-only/common/vmx86.c
+--- a/lib/modules/source/vmmon-only/common/vmx86.c	2009-10-20 22:31:31.000000000 -0200
++++ b/lib/modules/source/vmmon-only/common/vmx86.c	2010-01-01 00:00:00.000000000 -0200
+@@ -1144,7 +1144,7 @@
+        * * freq fits into 64 bits and that tDiff fits into 32 bits.  This
+        * is safe given the values used on Linux.
+        */
+-      Div643264(cDiff * freq, tDiff, &hz, &tmp);
++      Div643264(cDiff * freq, tDiff, (uint64 *)&hz, (uint32 *)&tmp);
+       hz += 500;
+       /*
+        * If result in kHz cannot fit into 32 bits, we would get a divide
+@@ -1153,7 +1153,7 @@
+       if ((uint32)(hz >> 32) >= 1000) {
+          goto failure;
+       }
+-      Div643232(hz, 1000, &tmpkHz, &tmp);
++      Div643232(hz, 1000, &tmpkHz, (uint32 *)&tmp);
+       kHz = tmpkHz;
+    }
+ #endif
+diff -urN a/lib/modules/source/vmmon-only/include/compat_cred.h b/lib/modules/source/vmmon-only/include/compat_cred.h
+--- a/lib/modules/source/vmmon-only/include/compat_cred.h	1969-12-31 21:00:00.000000000 -0300
++++ b/lib/modules/source/vmmon-only/include/compat_cred.h	2010-01-01 00:00:00.000000000 -0200
+@@ -0,0 +1,82 @@
++#ifndef __COMPAT_CRED_H__
++#define __COMPAT_CRED_H__
++
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
++#define current_uid()   current->uid
++#define current_gid()   current->gid
++#define current_suid()  current->suid
++#define current_sgid()  current->sgid
++#define current_euid()  current->euid
++#define current_egid()  current->egid
++#define current_fsuid() current->fsuid
++#define current_fsgid() current->fsgid
++#define current_cap()   current->cap_effective
++#endif
++
++void
++compat_current_fsuid(int fsuid)
++{
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
++	current->fsuid = fsuid;
++#else
++	struct cred *new_cred = prepare_creds();
++
++	if (new_cred) {
++		new_cred->fsuid = fsuid;
++		commit_creds(new_cred);
++	}
++#endif
++}
++
++void
++compat_current_fsgid(int fsgid)
++{
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
++	current->fsgid = fsgid;
++#else
++	struct cred *new_cred = prepare_creds();
++
++	if (new_cred) {
++		new_cred->fsgid = fsgid;
++		commit_creds(new_cred);
++	}
++#endif
++}
++
++void
++compat_cap_raise(int flag)
++{
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
++	cap_raise(current->cap_effective, flag);
++#else
++	struct cred *new_cred = prepare_creds();
++
++	if (new_cred) {
++		cap_raise(new_cred->cap_effective, flag);
++		commit_creds(new_cred);
++	}
++#endif
++}
++
++void
++compat_cap_lower(int flag)
++{
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
++	cap_lower(current->cap_effective, flag);
++#else
++	struct cred *new_cred = prepare_creds();
++
++	if (new_cred) {
++		cap_lower(new_cred->cap_effective, flag);
++		commit_creds(new_cred);
++	}
++#endif
++}
++
++int
++compat_cap_raised(int flag)
++{
++	return cap_raised(current_cap(), flag);
++}
++
++#endif
+diff -urN a/lib/modules/source/vmmon-only/include/x86svm.h b/lib/modules/source/vmmon-only/include/x86svm.h
+--- a/lib/modules/source/vmmon-only/include/x86svm.h	2009-10-20 22:31:31.000000000 -0200
++++ b/lib/modules/source/vmmon-only/include/x86svm.h	2010-01-01 00:00:00.000000000 -0200
+@@ -47,10 +47,14 @@
+ #endif
+ 
+ /* SVM related MSRs */
++#ifndef MSR_VM_CR
+ #define MSR_VM_CR                  0xC0010114
++#endif
+ #define MSR_IGNNE                  0xC0010115
+ #define MSR_SMM_CTL                0xC0010116
++#ifndef MSR_VM_HSAVE_PA
+ #define MSR_VM_HSAVE_PA            0xC0010117
++#endif
+ 
+ #define MSR_VM_CR_SVM_LOCK         0x0000000000000008ULL
+ #define MSR_VM_CR_SVME_DISABLE     0x0000000000000010ULL
+diff -urN a/lib/modules/source/vmmon-only/linux/driver.c b/lib/modules/source/vmmon-only/linux/driver.c
+--- a/lib/modules/source/vmmon-only/linux/driver.c	2009-10-20 22:31:31.000000000 -0200
++++ b/lib/modules/source/vmmon-only/linux/driver.c	2010-01-01 00:00:00.000000000 -0200
+@@ -1984,10 +1984,10 @@
+    }
+ 
+    case IOCTL_VMX86_ALLOW_CORE_DUMP:
+-      if (current->euid == current->uid &&
+-	  current->fsuid == current->uid &&
+-          current->egid == current->gid &&
+-	  current->fsgid == current->gid) {
++	if (current_euid() == current_uid() &&
++			current_fsuid() == current_uid() &&
++			current_egid()  == current_gid() &&
++			current_fsgid() == current_gid()) {
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 23) || defined(MMF_DUMPABLE)
+          /* Dump core, readable by user. */
+          set_bit(MMF_DUMPABLE, &current->mm->flags);
+diff -urN a/lib/modules/source/vmmon-only/linux/hostif.c b/lib/modules/source/vmmon-only/linux/hostif.c
+--- a/lib/modules/source/vmmon-only/linux/hostif.c	2009-10-20 22:31:31.000000000 -0200
++++ b/lib/modules/source/vmmon-only/linux/hostif.c	2010-01-01 00:00:00.000000000 -0200
+@@ -33,6 +33,7 @@
+ #include <linux/binfmts.h>
+ #include "compat_fs.h"
+ #include "compat_sched.h"
++#include "compat_cred.h"
+ #include "compat_slab.h"
+ #if defined(KERNEL_2_4_22)
+    #include <linux/vmalloc.h>
+@@ -2576,6 +2577,7 @@
+                 Bool setVMPtr,  // IN:
+                 Bool probe)     // IN:
+ {
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
+ #if defined(CONFIG_SMP) || defined(CONFIG_X86_UP_IOAPIC) || \
+     defined(CONFIG_X86_UP_APIC) || defined(CONFIG_X86_LOCAL_APIC)
+    VA kAddr;
+@@ -2601,6 +2603,7 @@
+       vm->hostAPIC = NULL;
+    }
+ #endif
++#endif
+    return TRUE;
+ }
+ 
+@@ -3456,7 +3459,7 @@
+    oldFS = get_fs();
+    set_fs(KERNEL_DS);
+    compat_allow_signal(SIGKILL);
+-   cap_raise(current->cap_effective, CAP_SYS_RESOURCE);
++   compat_cap_raise(CAP_SYS_RESOURCE);
+    compat_set_user_nice(current, linuxState.fastClockPriority);
+ 
+    while (linuxState.fastClockRate > HZ + HZ/16) {
+@@ -3580,19 +3583,19 @@
+          Bool cap;
+          long pid;
+ 
+-         fsuid = current->fsuid;
+-         current->fsuid = 0;
++         fsuid = current_fsuid();
++         compat_current_fsuid(0);
+          filp = filp_open("/dev/rtc", O_RDONLY, 0);
+-         current->fsuid = fsuid;
++         compat_current_fsuid(fsuid);
+          if (IS_ERR(filp)) {
+             Warning("/dev/rtc open failed: %d\n", (int)(VA)filp);
+             return -(int)(VA)filp;
+          }
+-         cap = cap_raised(current->cap_effective, CAP_SYS_RESOURCE);
+-         cap_raise(current->cap_effective, CAP_SYS_RESOURCE);
++         cap = compat_cap_raised(CAP_SYS_RESOURCE);
++         compat_cap_raise(CAP_SYS_RESOURCE);
+          res = HostIFDoIoctl(filp, RTC_PIE_ON, 0);
+          if (!cap) {
+-            cap_lower(current->cap_effective, CAP_SYS_RESOURCE);            
++            compat_cap_lower(CAP_SYS_RESOURCE);            
+          }
+          if (res < 0) {
+             Warning("/dev/rtc enable interrupt failed: %d\n", res);
+diff -urN a/lib/modules/source/vmmon-only/Makefile b/lib/modules/source/vmmon-only/Makefile
+--- a/lib/modules/source/vmmon-only/Makefile	2009-10-20 22:31:31.000000000 -0200
++++ b/lib/modules/source/vmmon-only/Makefile	2010-01-01 00:00:00.000000000 -0200
+@@ -113,12 +113,12 @@
+ 
+ vm_check_build = $(shell if $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \
+ 	$(CPPFLAGS) $(CFLAGS) $(CFLAGS_KERNEL) \
+-	$(EXTRA_CFLAGS) -Iinclude2/asm/mach-default \
++	$(EXTRA_CFLAGS) -I$(HEADER_DIR) -Iinclude2/asm/mach-default \
+ 	-DKBUILD_BASENAME=\"$(DRIVER)\" \
+ 	-Werror -S -o /dev/null -xc $(1) \
+ 	> /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi)
+ 
+-CC_WARNINGS := -Wall -Wstrict-prototypes
++CC_WARNINGS := -Wall -Wstrict-prototypes -Wno-unused -Wno-uninitialized -Wno-undef
+ CC_OPTS := $(GLOBAL_DEFS) $(CC_WARNINGS) -DVMW_USING_KBUILD
+ ifdef VMX86_DEVEL
+ CC_OPTS += -DVMX86_DEVEL
+diff -urN a/lib/modules/source/vmnet-only/Makefile b/lib/modules/source/vmnet-only/Makefile
+--- a/lib/modules/source/vmnet-only/Makefile	2009-10-20 22:31:33.000000000 -0200
++++ b/lib/modules/source/vmnet-only/Makefile	2010-01-01 00:00:00.000000000 -0200
+@@ -113,12 +113,12 @@
+ 
+ vm_check_build = $(shell if $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \
+ 	$(CPPFLAGS) $(CFLAGS) $(CFLAGS_KERNEL) \
+-	$(EXTRA_CFLAGS) -Iinclude2/asm/mach-default \
++	$(EXTRA_CFLAGS) -I$(HEADER_DIR) -Iinclude2/asm/mach-default \
+ 	-DKBUILD_BASENAME=\"$(DRIVER)\" \
+ 	-Werror -S -o /dev/null -xc $(1) \
+ 	> /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi)
+ 
+-CC_WARNINGS := -Wall -Wstrict-prototypes
++CC_WARNINGS := -Wall -Wstrict-prototypes -Wno-unused -Wno-uninitialized -Wno-undef
+ CC_OPTS := $(GLOBAL_DEFS) $(CC_WARNINGS) -DVMW_USING_KBUILD
+ ifdef VMX86_DEVEL
+ CC_OPTS += -DVMX86_DEVEL
+diff -urN a/lib/modules/source/vmnet-only/netif.c b/lib/modules/source/vmnet-only/netif.c
+--- a/lib/modules/source/vmnet-only/netif.c	2009-10-20 22:31:32.000000000 -0200
++++ b/lib/modules/source/vmnet-only/netif.c	2010-01-01 00:00:00.000000000 -0200
+@@ -194,9 +194,24 @@
+  *----------------------------------------------------------------------
+  */
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
++static const struct net_device_ops netdev_ops = {
++	.ndo_init = VNetNetifProbe,
++	.ndo_open = VNetNetifOpen,
++	.ndo_stop = VNetNetifClose,
++	.ndo_start_xmit = VNetNetifStartXmit,
++	.ndo_set_multicast_list = VNetNetifSetMulticast,
++	.ndo_set_mac_address = VNetNetifSetMAC,
++	.ndo_get_stats = VNetNetifGetStats,
++};
++#endif
++
+ static void
+ VNetNetIfSetup(struct net_device *dev)  // IN:
+ {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
++	dev->netdev_ops = &netdev_ops;
++#else
+    ether_setup(dev); // turns on IFF_BROADCAST, IFF_MULTICAST
+    dev->init = VNetNetifProbe;
+    dev->open = VNetNetifOpen;
+@@ -205,6 +220,8 @@
+    dev->get_stats = VNetNetifGetStats;
+    dev->set_mac_address = VNetNetifSetMAC;
+    dev->set_multicast_list = VNetNetifSetMulticast;
++#endif
++
+ #ifdef KERNEL_2_3_43
+    /*
+     * We cannot stuck... If someone will report problems under
+@@ -242,6 +259,7 @@
+                  int hubNum)     // IN: 
+ {
+    VNetNetIF *netIf;
++	VNetNetIF **netIf_priv;
+    struct net_device *dev;
+    int retval = 0;
+    static unsigned id = 0;
+@@ -324,8 +342,9 @@
+       goto out;
+    }
+ 
+-   dev->priv = netIf;
+-   netIf->dev = dev;
++	netIf_priv = netdev_priv(dev);
++	*netIf_priv = netIf;
++	netIf->dev = dev;
+    
+    memcpy(dev->dev_addr, netIf->port.paddr, sizeof netIf->port.paddr);
+    
+@@ -566,7 +585,7 @@
+ VNetNetifStartXmit(struct sk_buff    *skb, // IN:
+                    struct net_device *dev) // IN:
+ {
+-   VNetNetIF *netIf = (VNetNetIF*)dev->priv;
++	VNetNetIF *netIf = netdev_priv(dev);
+ 
+    if(skb == NULL) {
+       return 0;
+@@ -618,7 +637,7 @@
+ VNetNetifSetMAC(struct net_device *dev, // IN:
+                 void *p)                // IN:
+ {
+-   VNetNetIF *netIf = (VNetNetIF*)dev->priv;
++	VNetNetIF *netIf = netdev_priv(dev);
+    struct sockaddr const *addr = p;
+    if (!VMX86_IS_STATIC_MAC(addr->sa_data)) {
+       return -EINVAL;
+@@ -675,7 +694,7 @@
+ struct net_device_stats *
+ VNetNetifGetStats(struct net_device *dev) // IN:
+ {
+-   VNetNetIF *netIf = (VNetNetIF*)dev->priv;
++	VNetNetIF *netIf = netdev_priv(dev);
+    return &(netIf->stats);
+ }
+ 
+diff -urN a/lib/modules/source/vsock-only/Makefile b/lib/modules/source/vsock-only/Makefile
+--- a/lib/modules/source/vsock-only/Makefile	2009-10-20 22:31:35.000000000 -0200
++++ b/lib/modules/source/vsock-only/Makefile	2010-01-01 00:00:00.000000000 -0200
+@@ -113,12 +113,12 @@
+ 
+ vm_check_build = $(shell if $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \
+ 	$(CPPFLAGS) $(CFLAGS) $(CFLAGS_KERNEL) \
+-	$(EXTRA_CFLAGS) -Iinclude2/asm/mach-default \
++	$(EXTRA_CFLAGS) -I$(HEADER_DIR) -Iinclude2/asm/mach-default \
+ 	-DKBUILD_BASENAME=\"$(DRIVER)\" \
+ 	-Werror -S -o /dev/null -xc $(1) \
+ 	> /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi)
+ 
+-CC_WARNINGS := -Wall -Wstrict-prototypes
++CC_WARNINGS := -Wall -Wstrict-prototypes -Wno-unused -Wno-uninitialized -Wno-undef
+ CC_OPTS := $(GLOBAL_DEFS) $(CC_WARNINGS) -DVMW_USING_KBUILD
+ ifdef VMX86_DEVEL
+ CC_OPTS += -DVMX86_DEVEL

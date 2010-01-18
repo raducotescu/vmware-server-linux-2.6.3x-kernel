@@ -1,7 +1,37 @@
-The script will automatically patch and then run the install process for VMware
-Server on Ubuntu machines.
+ How to
+    1. Download VMware Server (2.0.1 or 2.0.2) – gz format, not rpm. Whichever
+    version you choose, keep the license key near.
+    2. Run the script with super user rights either in the same folder where you
+    have downloaded the server archive, either by providing it the path to that
+    folder. The script will download the needed patch from my server. Make sure
+    the folder where you have downloaded the server’s archive doesn’t contain
+    spaces in its path name or the script will exit (giving you this reason as
+    an error message). If the script exists, it will give you a decent warning
+    from which you should be able to tell what’s wrong. On Ubuntu at least, the
+    VSOCK module will not work (will fail to compile), giving you a hint that
+    your kernel sources might not be the ones for your running kernel. This is
+    not true, as the script takes care of this before doing the hard work.
+    Anyway, VMware Server will work without it.
 
-To run the script either launch it from the same folder that contains the VMware
-Server archive or supply it the path to this folder. Be careful to run the
-script as a superuser and take care not to supply a folder path that contains
-spaces in it.
+    Example on how to run the script:
+
+    chmod +x vmware-server-2.0.x-kernel-2.6.31-14-install.sh
+    sudo ./vmware-server-2.0.x-kernel-2.6.31-14-install.sh [PATH _TO_VMWARE_ARCHIVE]
+
+    4. When you are asked about adding users to the server, if you do not
+    provide your own account, the user used for loging in the web console of the
+    server will be root (maybe you should add yourself there).
+
+    5. Provide the license key when asked about it.
+    
+    6. For the ones installing Windows guests in VMware Server, you must pick
+    one of the following two solutions to avoid having problems with the mouse
+    in the console:
+        * you run this script in the terminal every time you want to launch a
+        VMware Server console, but after you have installed the VMware plug-in
+        for Firefox
+        * you export this variable in the environment right after login such
+        that it will be set before starting Firefox:
+            VMWARE_USE_SHIPPED_GTK=yes
+
+
