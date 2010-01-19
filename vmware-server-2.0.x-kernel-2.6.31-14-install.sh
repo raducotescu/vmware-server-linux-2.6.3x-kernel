@@ -173,16 +173,23 @@ resolveDepsSuse() {
         else echo "You do have the wget package..."
 	fi
 	if [[ -z `rpm -qa linux-kernel-headers` ]]; then
-		echo "Installing kernel-headers..."
-		zypper --non-interactive install kernel-headers
+		echo "Installing linux-kernel-headers..."
+		zypper --non-interactive install linux-kernel-headers
 		packageError $?
-	else echo "You do have the kernel-headers package..."
+	else echo "You do have the linux-kernel-headers package..."
 	fi
 	if [[ -z `rpm -qa kernel-source` ]]; then
 		echo "Installing kernel-source..."
-		zypper --non-interactive install kernel-devel
+		zypper --non-interactive install kernel-source
 		packageError $?
-	else echo "You do have the kernel-devel package..."
+	else echo "You do have the kernel-source package..."
+	fi
+	kernel_type=`uname -r | awk 'BEGIN { FS = "-" } ; { print $3 }'`
+	if [[ -z `rpm -qa kernel-$kernel_type-devel` ]]
+		echo "Installing kernel-$kernel_type-devel..."
+		zypper --non-interactive install kernel-$kernel_type-devel
+		packageError $?
+	else echo "You do have the kernel-$kernel_type-devel package..."
 	fi
 	if [[ -z `rpm -qa gcc` ]]; then
 		echo "Installing gcc..."
