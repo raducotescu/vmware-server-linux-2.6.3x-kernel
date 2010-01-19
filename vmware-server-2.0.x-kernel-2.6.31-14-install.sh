@@ -185,7 +185,7 @@ resolveDepsSuse() {
 	else echo "You do have the kernel-source package..."
 	fi
 	kernel_type=`uname -r | awk 'BEGIN { FS = "-" } ; { print $3 }'`
-	if [[ -z `rpm -qa kernel-$kernel_type-devel` ]]
+	if [[ -z `rpm -qa kernel-$kernel_type-devel` ]]; then
 		echo "Installing kernel-$kernel_type-devel..."
 		zypper --non-interactive install kernel-$kernel_type-devel
 		packageError $?
