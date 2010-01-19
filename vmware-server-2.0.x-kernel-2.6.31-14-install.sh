@@ -321,7 +321,7 @@ clean() {
 	rm -rf $VMWARE_HOME/vmware-server-distrib "$VMWARE_HOME/$PATCH"
 	echo "Thank you for using the script!"
 	echo -e "Patch provided by: \n\tRamon de Carvalho Valle"
-	echo -e "\thttp://risesecurity.org/"
+	echo -e "\thttp://risesecurity.org"
 	echo -e "Script author: \n\tRadu Cotescu"
 	echo -e "\thttp://radu.cotescu.com"
 }
