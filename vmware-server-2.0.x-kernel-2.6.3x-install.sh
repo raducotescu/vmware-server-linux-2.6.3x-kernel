@@ -2,10 +2,10 @@
 
 ###############################################################################
 # @author Radu Cotescu                                                        #
-# @version 1.1 Mon Jan 18 15:24:39 EET 2010                                   #
+# @version 1.2 Sun Feb 21 00:04:21 EET 2010                                   #
 #                                                                             #
 # For further details visit:                                                  #
-# 	http://radu.cotescu.com/?p=1095                                       #
+# 	http://radu.cotescu.com/?p=1095                                           #
 #                                                                             #
 # This script will help you install VMWare Server 2.0.x on Ubuntu 9.10.       #
 # Based on a script from http://communities.vmware.com/thread/215985          #
@@ -19,6 +19,7 @@
 
 VMWARE_HOME=$1
 PATCH="vmware-server-2.0.2-203138-update.patch"
+CONFIG_PATCH="vmware-config.patch"
 
 display_usage() {
 	echo "This script must be run with super-user privileges."
@@ -236,6 +237,12 @@ install() {
 		echo "Check your internet connection. :("
 		exit 1
 	fi
+	wget http://codebin.cotescu.com/vmware/$CONFIG_PATCH -O "$VMWARE_HOME/$CONFIG_PATCH"
+	if [ ! -r "$VMWARE_HOME/$CONFIG_PATCH" ]; then
+		echo "The download of $CONFIG_PATCH from http://codebin.cotescu.com/vmware/ failed!"
+		echo "Check your internet connection. :("
+		exit 1
+	fi
 	TARS=`find "$MODULES_SOURCE" -maxdepth 1 -name '*.tar'`
 	if [ ! "$TARS" ]; then
 		echo ".tar files from $MODULES_SOURCE appear to be missing!"
@@ -312,13 +319,15 @@ install() {
 	done
 	echo "Removing binaries directory..."
 	rm -rf "$MODULES_DIR/binary"
+	echo "Patching vmware-install.pl..."
+	patch "$VMWARE_HOME/vmware-server-distrib/bin/vmware-config.pl" "$VMWARE_HOME/$CONFIG_PATCH"
 	echo "Starting VMware Server original install script..."
 	$VMWARE_HOME/vmware-server-distrib/vmware-install.pl
 }
 
 clean() {
 	echo "Housekeeping..."
-	rm -rf $VMWARE_HOME/vmware-server-distrib "$VMWARE_HOME/$PATCH"
+	rm -rf $VMWARE_HOME/vmware-server-distrib "$VMWARE_HOME/$PATCH" "$VMWARE_HOME/$CONFIG_PATCH"
 	echo "Thank you for using the script!"
 	echo -e "Patch provided by: \n\tRamon de Carvalho Valle"
 	echo -e "\thttp://risesecurity.org"
