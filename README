@@ -15,8 +15,8 @@
 
     Example on how to run the script:
 
-    chmod +x vmware-server-2.0.x-kernel-2.6.31-14-install.sh
-    sudo ./vmware-server-2.0.x-kernel-2.6.31-14-install.sh [PATH _TO_VMWARE_ARCHIVE]
+    chmod +x vmware-server-2.0.x-kernel-2.6.3x-install.sh
+    sudo ./vmware-server-2.0.x-kernel-2.6.3x-install.sh [PATH _TO_VMWARE_ARCHIVE]
 
     4. When you are asked about adding users to the server, if you do not
     provide your own account, the user used for loging in the web console of the
