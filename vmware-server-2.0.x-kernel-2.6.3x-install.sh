@@ -1,8 +1,7 @@
 #!/bin/bash
-
 ###############################################################################
 # @author Radu Cotescu                                                        #
-# @version 1.2 Sun Feb 21 00:04:21 EET 2010                                   #
+# @version 1.3                                                                #
 #                                                                             #
 # For further details visit:                                                  #
 # 	http://radu.cotescu.com/?p=1095                                           #
@@ -185,12 +184,11 @@ resolveDepsSuse() {
 		packageError $?
 	else echo "You do have the kernel-source package..."
 	fi
-	kernel_type=`uname -r | awk 'BEGIN { FS = "-" } ; { print $3 }'`
-	if [[ -z `rpm -qa kernel-$kernel_type-devel` ]]; then
-		echo "Installing kernel-$kernel_type-devel..."
-		zypper --non-interactive install kernel-$kernel_type-devel
+	if [[ -z `rpm -qa kernel-syms` ]]; then
+		echo "Installing kernel-syms..."
+		zypper --non-interactive install kernel-syms
 		packageError $?
-	else echo "You do have the kernel-$kernel_type-devel package..."
+	else echo "You do have the kernel-syms package..."
 	fi
 	if [[ -z `rpm -qa gcc` ]]; then
 		echo "Installing gcc..."
