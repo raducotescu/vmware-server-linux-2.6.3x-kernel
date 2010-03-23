@@ -25,6 +25,7 @@ display_usage() {
 	echo -e "\nUsage:\n./vmware-server-2.0.x-kernel-2.6.31-14-install.sh [PATH TO VMWARE ARCHIVE]\n"
 	echo "If you do not specify the PATH the script will scan the current folder"
 	echo "for VMware server archive and if doesn't find anything it will exit."
+	echo "Please make sure that PATH doesn't contain any spaces."
 	exit 1
 }
 
@@ -50,6 +51,13 @@ set_workspace() {
 	if [[ -z $VMWARE_HOME ]]; then
 		VMWARE_HOME="`pwd`"
 	fi
+	case $VMWARE_HOME in
+		*\ *)
+			echo "The path you indicated contains spaces. Please adjust your path accordingly."
+			display_usage
+			exit 1
+		;;
+	esac
 	VMWARE_ARCHIVE=`ls "$VMWARE_HOME" 2> /dev/null | egrep "^(VMware-server-2.0.[0-9]-)[0-9]*.[A-Za-z0-9_]*.tar.gz"`
 	MODULES_DIR="$VMWARE_HOME/vmware-server-distrib/lib/modules"
 	MODULES_SOURCE="$MODULES_DIR/source"
