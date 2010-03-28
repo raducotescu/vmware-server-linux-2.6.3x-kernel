@@ -4,7 +4,7 @@
 # @version 1.3                                                                #
 #                                                                             #
 # For further details visit:                                                  #
-# 	http://radu.cotescu.com/?p=1095                                           #
+# 	http://radu.cotescu.com/?p=1095                                       #
 #                                                                             #
 # This script will help you install VMWare Server 2.0.x on Ubuntu 9.10.       #
 # Based on a script from http://communities.vmware.com/thread/215985          #
@@ -352,7 +352,7 @@ install
 if [[ $distro == "fedora" ]]; then
 	echo "On Fedora you must follow these steps in order to make VMware Server to work properly:"
 	echo -e "\t1. edit /etc/services and replace the entry located on TCP/902 port with vmware-authd"
-	echo -e "\t2. set SELinux to permissive or even disable it by editing the /etc/selinux/config file"
+	echo -e "\t2. disable SELinux by editing the /etc/selinux/config file"
 	echo -e "\t3. reboot your system"
 fi
 
