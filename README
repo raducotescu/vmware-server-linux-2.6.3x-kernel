@@ -27,9 +27,9 @@
     6. For the ones installing Windows guests in VMware Server, you must pick
     one of the following two solutions to avoid having problems with the mouse
     in the console:
-        * you run this script in the terminal every time you want to launch a
-        VMware Server console, but after you have installed the VMware plug-in
-        for Firefox
+        * you run start-VMware-console.sh (see repository) in the terminal every time
+	you want to launch a VMware Server console, but after you have installed the
+	VMware plug-in for Firefox
         * you export this variable in the environment right after login such
         that it will be set before starting Firefox:
             VMWARE_USE_SHIPPED_GTK=yes
