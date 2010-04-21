@@ -6,37 +6,41 @@
 # For further details visit:                                                  #
 # 	http://radu.cotescu.com/?p=1095                                       #
 #                                                                             #
-# This script will help you install VMWare Server 2.0.x on Ubuntu 9.10.       #
+# This script will help you install VMWare Server 2.0.x on Linux systems      #
+# based on Ubuntu, Fedora, openSuSE or SuSE running kernels 2.6.31 or 2.6.32. #
+#                                                                             #
 # Based on a script from http://communities.vmware.com/thread/215985          #
 #                                                                             #
 # This script must be run with super-user privileges.                         #
 # Usage:                                                                      #
-# ./vmware-server-2.0.x-kernel-2.6.31-14-install.sh [PATH TO VMWARE ARCHIVE]  #
+# ./vmware-server-2.0.x-kernel-2.6.3x-install.sh [PATH TO VMWARE ARCHIVE]     #
 # If you do not specify the PATH the script will scan the current folder for  #
 # VMware server archive and if doesn't find anything it will exit.            #
 ###############################################################################
 
+SCRIPT_NAME=`basename $0`
 VMWARE_HOME=$1
 PATCH="vmware-server-2.0.2-203138-update.patch"
 CONFIG_PATCH="vmware-config.patch"
 
 display_usage() {
 	echo "This script must be run with super-user privileges."
-	echo -e "\nUsage:\n./vmware-server-2.0.x-kernel-2.6.31-14-install.sh [PATH TO VMWARE ARCHIVE]\n"
+	echo -e "\nUsage:\n./$SCRIPT_NAME [PATH TO VMWARE ARCHIVE]\n"
 	echo "If you do not specify the PATH the script will scan the current folder"
 	echo "for VMware server archive and if doesn't find anything it will exit."
 	echo "Please make sure that PATH doesn't contain any spaces."
-	exit 1
 }
 
 check_usage() {
 	if [ ! $params -le 1 ]
 	then
 		display_usage
+		exit 1
 	fi
 	if [[ ($param == "--help") ||  $param == "-h" ]]
 	then
 		display_usage
+		exit 0
 	fi
 }
 
