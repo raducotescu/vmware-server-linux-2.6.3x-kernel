@@ -1,7 +1,7 @@
 #!/bin/bash
 ###############################################################################
 # @author Radu Cotescu                                                        #
-# @version 1.3                                                                #
+# @version 1.4                                                                #
 #                                                                             #
 # For further details visit:                                                  #
 # 	http://radu.cotescu.com/?p=1095                                       #
@@ -19,6 +19,7 @@
 ###############################################################################
 
 SCRIPT_NAME=`basename $0`
+DIR_NAME=`dirname $0`
 VMWARE_HOME=$1
 PATCH="vmware-server-2.0.2-203138-update.patch"
 CONFIG_PATCH="vmware-config.patch"
@@ -235,22 +236,18 @@ install() {
 		"suse")
 		resolveDepsSuse
 	esac
-	echo "Downloading patch file..."
-	wget http://codebin.cotescu.com/vmware/$PATCH -O "$VMWARE_HOME/$PATCH"
 	if [[ ! -e "$VMWARE_HOME/vmware-server-distrib" ]]; then
 		echo Extracting the contents of $VMWARE_ARCHIVE
 		tar zxf "$VMWARE_HOME/$VMWARE_ARCHIVE" -C "$VMWARE_HOME"
 	fi
-	echo "Checking patch download and archives from the extracted folders..."
-	if [ ! -r "$VMWARE_HOME/$PATCH" ]; then
-		echo "The download of $PATCH from http://codebin.cotescu.com/vmware/ failed!"
-		echo "Check your internet connection. :("
+	if [ ! -r "$DIR_NAME/$PATCH" ]; then
+		echo "File $DIR_NAME/$PATCH is missing!"
+		echo "Did you delete it?"
 		exit 1
 	fi
-	wget http://codebin.cotescu.com/vmware/$CONFIG_PATCH -O "$VMWARE_HOME/$CONFIG_PATCH"
-	if [ ! -r "$VMWARE_HOME/$CONFIG_PATCH" ]; then
-		echo "The download of $CONFIG_PATCH from http://codebin.cotescu.com/vmware/ failed!"
-		echo "Check your internet connection. :("
+	if [ ! -r "$DIR_NAME/$CONFIG_PATCH" ]; then
+		echo "File $DIR_NAME/$CONFIG_PATCH is missing!"
+		echo "Did you delete it?"
 		exit 1
 	fi
 	TARS=`find "$MODULES_SOURCE" -maxdepth 1 -name '*.tar'`
@@ -279,14 +276,14 @@ install() {
 		fi
 	done
 	echo "Testing patch..."
-	patch --dry-run -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$VMWARE_HOME/$PATCH"
+	patch --dry-run -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH"
 	RESULT=$?
 	if [ "0" != "$RESULT" ]; then
 		echo "The patch cannot be applied. :("
 		exit 1
 	fi
 	echo "Applying patch..."
-	patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$VMWARE_HOME/$PATCH"
+	patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH"
 	RESULT=$?
 	if [ "0" != "$RESULT" ]; then
 		echo "A problem occured with the patch while it was being applied. :("
@@ -330,14 +327,14 @@ install() {
 	echo "Removing binaries directory..."
 	rm -rf "$MODULES_DIR/binary"
 	echo "Patching vmware-install.pl..."
-	patch "$VMWARE_HOME/vmware-server-distrib/bin/vmware-config.pl" "$VMWARE_HOME/$CONFIG_PATCH"
+	patch "$VMWARE_HOME/vmware-server-distrib/bin/vmware-config.pl" "$DIR_NAME/$CONFIG_PATCH"
 	echo "Starting VMware Server original install script..."
 	$VMWARE_HOME/vmware-server-distrib/vmware-install.pl
 }
 
 clean() {
 	echo "Housekeeping..."
-	rm -rf $VMWARE_HOME/vmware-server-distrib "$VMWARE_HOME/$PATCH" "$VMWARE_HOME/$CONFIG_PATCH"
+	rm -rf $VMWARE_HOME/vmware-server-distrib
 	echo "Thank you for using the script!"
 	echo -e "Patch provided by: \n\tRamon de Carvalho Valle"
 	echo -e "\thttp://risesecurity.org"
