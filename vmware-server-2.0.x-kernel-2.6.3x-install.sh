@@ -100,13 +100,6 @@ packageError() {
 
 resolveDepsUbuntu() {
 	echo "Checking for needed packages on Ubuntu"
-	check_wget=`dpkg-query -W -f='${Status} ${Version}\n' wget 2> /dev/null | egrep "^install"`
-        if [[ -z $check_wget ]]; then
-                echo "Installing wget package..."
-                apt-get -y install wget
-                packageError $?
-        else echo "You do have the wget package..."
-	fi
 	LINUX_HEADERS="linux-headers-`uname -r`"
 	check_headers=`dpkg-query -W -f='${Status} ${Version}\n' $LINUX_HEADERS 2> /dev/null | egrep "^install"`
 	if [[ -z $check_headers ]]; then
@@ -133,12 +126,6 @@ resolveDepsUbuntu() {
 
 resolveDepsFedora() {
 	echo "Checking for needed packages on Fedora"
-	if [[ -z `rpm -qa wget` ]]; then
-                echo "Installing wget..."
-                yum -y install wget
-                packageError $?
-        else echo "You do have the wget package..."
-	fi
 	if [[ -z `rpm -qa xinetd` ]]; then
                 echo "Installing xinetd..."
                 yum -y install xinetd
@@ -179,12 +166,6 @@ resolveDepsFedora() {
 
 resolveDepsSuse() {
 	echo "Checking for needed packages on SUSE"
-	if [[ -z `rpm -qa wget` ]]; then
-                echo "Installing wget..."
-                zypper --non-interactive install wget
-                packageError $?
-        else echo "You do have the wget package..."
-	fi
 	if [[ -z `rpm -qa linux-kernel-headers` ]]; then
 		echo "Installing linux-kernel-headers..."
 		zypper --non-interactive install linux-kernel-headers
