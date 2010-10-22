@@ -4,10 +4,11 @@
 # @version 1.4                                                                #
 #                                                                             #
 # For further details visit:                                                  #
-# 	http://radu.cotescu.com/?p=1095                                       #
+# 	http://radu.cotescu.com/?p=1095                                           #
 #                                                                             #
 # This script will help you install VMWare Server 2.0.x on Linux systems      #
-# based on Ubuntu, Fedora, openSuSE or SuSE running kernels 2.6.31 or 2.6.32. #
+# based on Ubuntu, Fedora, openSuSE or SuSE running kernels 2.6.31, 2.6.32    #
+# and 2.6.35.                                                                 #
 #                                                                             #
 # Based on a script from http://communities.vmware.com/thread/215985          #
 #                                                                             #
@@ -22,7 +23,9 @@ SCRIPT_NAME=`basename $0`
 DIR_NAME=`dirname $0`
 VMWARE_HOME=$1
 PATCH="vmware-server-2.0.2-203138-update.patch"
+PATCH2="vmware-server-2.0.2-203138-2.6.35.patch"
 CONFIG_PATCH="vmware-config.patch"
+KERNEL=`uname -r`
 
 display_usage() {
 	echo "This script must be run with super-user privileges."
@@ -264,7 +267,12 @@ install() {
 		exit 1
 	fi
 	echo "Applying patch..."
-	patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH"
+	check_kernel=`echo $KERNEL | egrep -e "2.6.35"`
+	if [[ -z $check_kernel ]]; then
+		patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH"
+	else
+		patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH2"
+	fi
 	RESULT=$?
 	if [ "0" != "$RESULT" ]; then
 		echo "A problem occured with the patch while it was being applied. :("
