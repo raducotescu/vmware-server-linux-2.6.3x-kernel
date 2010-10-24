@@ -272,6 +272,8 @@ install() {
 		patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH"
 	else
 		patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH2"
+		ln -s /usr/src/linux-`uname -r`/include/generated/autoconf.h /usr/src/linux-`uname -r`/include/linux/autoconf.h
+		ln -s /usr/src/linux-`uname -r`/include/generated/utsrelease.h /usr/src/linux-`uname -r`/include/linux/utsrelease.h
 	fi
 	RESULT=$?
 	if [ "0" != "$RESULT" ]; then
