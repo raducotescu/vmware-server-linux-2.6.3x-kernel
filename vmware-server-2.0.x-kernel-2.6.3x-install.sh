@@ -1,7 +1,7 @@
 #!/bin/bash
 ###############################################################################
 # @author Radu Cotescu                                                        #
-# @version 1.4                                                                #
+# @version 1.5                                                                #
 #                                                                             #
 # For further details visit:                                                  #
 # 	http://radu.cotescu.com/?p=1095                                           #
@@ -23,7 +23,6 @@ SCRIPT_NAME=`basename $0`
 DIR_NAME=`dirname $0`
 VMWARE_HOME=$1
 PATCH="vmware-server-2.0.2-203138-update.patch"
-PATCH2="vmware-server-2.0.2-203138-2.6.35.patch"
 CONFIG_PATCH="vmware-config.patch"
 KERNEL=`uname -r`
 
@@ -266,15 +265,11 @@ install() {
 		echo "The patch cannot be applied. :("
 		exit 1
 	fi
+	echo "Creating some simlinks for the newer kernels..."
+	ln -sf /usr/src/linux-headers-`uname -r`/include/generated/autoconf.h /usr/src/linux-headers-`uname -r`/include/linux/autoconf.h
+	ln -sf /usr/src/linux-headers-`uname -r`/include/generated/utsrelease.h /usr/src/linux-headers-`uname -r`/include/linux/utsrelease.h
 	echo "Applying patch..."
-	check_kernel=`echo $KERNEL | egrep -e "2.6.35"`
-	if [[ -z $check_kernel ]]; then
-		patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH"
-	else
-		patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH2"
-		ln -s /usr/src/linux-`uname -r`/include/generated/autoconf.h /usr/src/linux-`uname -r`/include/linux/autoconf.h
-		ln -s /usr/src/linux-`uname -r`/include/generated/utsrelease.h /usr/src/linux-`uname -r`/include/linux/utsrelease.h
-	fi
+	patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH"
 	RESULT=$?
 	if [ "0" != "$RESULT" ]; then
 		echo "A problem occured with the patch while it was being applied. :("
@@ -291,8 +286,9 @@ install() {
 	echo "Checking that the compiling will succeed..."
 	for BASE in $BASES
 	do
-	# Skip checking vmppuser module because it's badly broken dead code
-	if [ "vmppuser" != "$BASE" ]; then
+	# Skip checking vmppuser and vsock modules (they don't compile and are not
+	# critical)
+	if [[ "vmppuser" != "$BASE" && "vsock" != "$BASE" ]]; then
 		MODDIR="${BASE}-only"
 		echo "Trying to compile $BASE module to see if it works"
 		echo "Performing make in $MODULES_SOURCE/$MODDIR"
