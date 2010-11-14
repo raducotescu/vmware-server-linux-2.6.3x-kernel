@@ -266,8 +266,8 @@ install() {
 		exit 1
 	fi
 	echo "Creating some simlinks for the newer kernels..."
-	ln -sf /usr/src/linux-headers-`uname -r`/include/generated/autoconf.h /usr/src/linux-headers-`uname -r`/include/linux/autoconf.h
-	ln -sf /usr/src/linux-headers-`uname -r`/include/generated/utsrelease.h /usr/src/linux-headers-`uname -r`/include/linux/utsrelease.h
+	ln -s /usr/src/linux-headers-`uname -r`/include/generated/autoconf.h /usr/src/linux-headers-`uname -r`/include/linux/autoconf.h
+	ln -s /usr/src/linux-headers-`uname -r`/include/generated/utsrelease.h /usr/src/linux-headers-`uname -r`/include/linux/utsrelease.h
 	echo "Applying patch..."
 	patch -N -p1 --directory="$VMWARE_HOME/vmware-server-distrib" -s < "$DIR_NAME/$PATCH"
 	RESULT=$?
