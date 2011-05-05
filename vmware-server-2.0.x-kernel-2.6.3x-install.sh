@@ -1,14 +1,14 @@
 #!/bin/bash
 ###############################################################################
 # @author Radu Cotescu                                                        #
-# @version 1.5                                                                #
+# @version 1.6                                                                #
 #                                                                             #
 # For further details visit:                                                  #
-# 	http://radu.cotescu.com/?p=1095                                           #
+# http://radu.cotescu.com/?p=1095                                             #
 #                                                                             #
 # This script will help you install VMWare Server 2.0.x on Linux systems      #
-# based on Ubuntu, Fedora, openSuSE or SuSE running kernels 2.6.31, 2.6.32    #
-# and 2.6.35.                                                                 #
+# based on Ubuntu, Fedora, openSuSE or SuSE running kernels 2.6.31, 2.6.32,   #
+# 2.6.35 and 2.6.38.                                                          #
 #                                                                             #
 # Based on a script from http://communities.vmware.com/thread/215985          #
 #                                                                             #
@@ -325,6 +325,7 @@ clean() {
 	echo "Thank you for using the script!"
 	echo -e "Patch provided by: \n\tRamon de Carvalho Valle"
 	echo -e "\thttp://risesecurity.org"
+	echo -e "\tupdated by sirusdv (http://ubuntuforums.org/member.php?u=1289848)"
 	echo -e "Script author: \n\tRadu Cotescu"
 	echo -e "\thttp://radu.cotescu.com"
 }

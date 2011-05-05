@@ -166,6 +166,9 @@ diff -urN a/lib/modules/source/vmmon-only/include/x86svm.h b/lib/modules/source/
 diff -urN a/lib/modules/source/vmmon-only/linux/driver.c b/lib/modules/source/vmmon-only/linux/driver.c
 --- a/lib/modules/source/vmmon-only/linux/driver.c	2009-10-20 22:31:31.000000000 -0200
 +++ b/lib/modules/source/vmmon-only/linux/driver.c	2010-01-01 00:00:00.000000000 -0200
+@@ -1,1 +1,1 @@
+-/*********************************************************
++#define VMW_HAVE_UNLOCKED_IOCTL /*
 @@ -1984,10 +1984,10 @@
     }
  
@@ -184,11 +187,12 @@ diff -urN a/lib/modules/source/vmmon-only/linux/driver.c b/lib/modules/source/vm
 diff -urN a/lib/modules/source/vmmon-only/linux/hostif.c b/lib/modules/source/vmmon-only/linux/hostif.c
 --- a/lib/modules/source/vmmon-only/linux/hostif.c	2009-10-20 22:31:31.000000000 -0200
 +++ b/lib/modules/source/vmmon-only/linux/hostif.c	2010-01-01 00:00:00.000000000 -0200
-@@ -33,6 +33,7 @@
+@@ -33,6 +33,8 @@
  #include <linux/binfmts.h>
  #include "compat_fs.h"
  #include "compat_sched.h"
 +#include "compat_cred.h"
++#define HAVE_UNLOCKED_IOCTL
  #include "compat_slab.h"
  #if defined(KERNEL_2_4_22)
     #include <linux/vmalloc.h>
@@ -207,7 +211,28 @@ diff -urN a/lib/modules/source/vmmon-only/linux/hostif.c b/lib/modules/source/vm
 +#endif
     return TRUE;
  }
- 
+
+@@ -3411,20 +3411,9 @@
+               u_int iocmd,
+               unsigned long ioarg)
+ {
+-#ifdef HAVE_UNLOCKED_IOCTL
+    if (filp->f_op->unlocked_ioctl) {
+       return filp->f_op->unlocked_ioctl(filp, iocmd, ioarg);
+    }
+-#endif
+-   if (filp->f_op->ioctl) {
+-      long err;
+-
+-      lock_kernel();
+-      err = filp->f_op->ioctl(filp->f_dentry->d_inode, filp, iocmd, ioarg);
+-      unlock_kernel();
+-      return err;
+-   }
+-   return -ENOIOCTLCMD;
+ }
+
+
 @@ -3456,7 +3459,7 @@
     oldFS = get_fs();
     set_fs(KERNEL_DS);
@@ -381,3 +406,210 @@ diff -urN a/lib/modules/source/vsock-only/Makefile b/lib/modules/source/vsock-on
  CC_OPTS := $(GLOBAL_DEFS) $(CC_WARNINGS) -DVMW_USING_KBUILD
  ifdef VMX86_DEVEL
  CC_OPTS += -DVMX86_DEVEL
+
+diff -Naurx '*.o' -x '*.cmd' -x '*.ko' '-x*.tar' '-x*.mod.c' vmware-server-distrib//lib/modules/source/vmci-only/include/compat_semaphore.h vmware-working//lib/modules/source/vmci-only
+--- vmware-server-distrib//lib/modules/source/vmci-only/include/compat_semaphore.h  2009-10-20 18:43:27.000000000 -0700
++++ vmware-working//lib/modules/source/vmci-only/include/compat_semaphore.h 2011-05-01 16:33:56.115417067 -0700
+@@ -45,5 +45,23 @@
+    #endif
+ #endif
+
++#if (defined CONFIG_PREEMPT_RT && LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)) || LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
++   /*
++    * The -rt patch series changes the name of semaphore/mutex initialization
++    * routines (across the entire kernel).  Probably to identify locations that
++    * need to be audited for spinlock vs. true semaphore.  We always assumed
++    * true semaphore, so just apply the rename.
++    *
++    * The -rt patchset added the rename between 2.6.29-rt and 2.6.31-rt.
++    */
++   #ifndef DECLARE_MUTEX
++      #define DECLARE_MUTEX(_m)  DEFINE_SEMAPHORE(_m)
++   #endif
++   #ifndef init_MUTEX
++      #define init_MUTEX(_m) sema_init(_m,1)
++   #endif
++#endif
++
++
+
+ #endif /* __COMPAT_SEMAPHORE_H__ */
+diff -Naurx '*.o' -x '*.cmd' -x '*.ko' '-x*.tar' '-x*.mod.c' vmware-server-distrib//lib/modules/source/vmmon-only/linux/driver.c vmware-working//lib/modules/source/vmmon-only/linux/dri
+--- vmware-server-distrib//lib/modules/source/vmmon-only/linux/driver.c 2011-05-01 16:51:36.695416720 -0700
++++ vmware-working//lib/modules/source/vmmon-only/linux/driver.c    2011-05-01 16:41:28.225416919 -0700
+@@ -153,6 +153,7 @@
+
+ struct VMXLinuxState linuxState;
+
++#define kernel_locked_by_current() (current->lock_depth >= 0)
+
+ /*
+  *----------------------------------------------------------------------
+@@ -1743,7 +1744,7 @@
+       unlock_kernel();
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+ #  if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+-      ASSERT(!kernel_locked());
++      ASSERT(!0);
+ #  endif
+ #endif
+       retval = Vmx86_RunVM(vmLinux->vm, vcpuid);
+diff -Naurx '*.o' -x '*.cmd' -x '*.ko' '-x*.tar' '-x*.mod.c' vmware-server-distrib//lib/modules/source/vmnet-only/driver.c vmware-working//lib/modules/source/vmnet-only/driver.c
+--- vmware-server-distrib//lib/modules/source/vmnet-only/driver.c   2009-10-20 18:43:26.000000000 -0700
++++ vmware-working//lib/modules/source/vmnet-only/driver.c  2011-05-01 16:43:26.145416881 -0700
+@@ -117,7 +117,8 @@
+  * For change to peer field you must own both
+  * vnetStructureSemaphore and vnetPeerLock for write.
+  */
+-DECLARE_MUTEX(vnetStructureSemaphore);
++
++DEFINE_SEMAPHORE(vnetStructureSemaphore);
+
+ #if defined(VM_X86_64) && !defined(HAVE_COMPAT_IOCTL)
+ /*
+diff -Naurx '*.o' -x '*.cmd' -x '*.ko' '-x*.tar' '-x*.mod.c' vmware-server-distrib//lib/modules/source/vmnet-only/filter.c vmware-working//lib/modules/source/vmnet-only/filter.c
+--- vmware-server-distrib//lib/modules/source/vmnet-only/filter.c   2009-10-20 18:43:25.000000000 -0700
++++ vmware-working//lib/modules/source/vmnet-only/filter.c  2011-05-01 16:44:33.485416859 -0700
+@@ -76,7 +76,11 @@
+ RuleSet *activeRule = NULL;   /* actual rule set for filter callback to use */
+
+ /* locks to protect against concurrent accesses. */
+-static DECLARE_MUTEX(filterIoctlSem);   /* serialize ioctl()s from user space. */
++//#if !defined(CONFIG_PREEMPT_RT)
++//static DECLARE_MUTEX(filterIoctlSem);   /* serialize ioctl()s from user space. */
++//#else
++static DEFINE_SEMAPHORE(filterIoctlSem);   /* serialize ioctl()s from user space. */
++//#endif
+ /*
+  * user/netfilter hook concurrency lock.
+  * This spinlock doesn't scale well if/when in the future the netfilter
+diff -Naurx '*.o' -x '*.cmd' -x '*.ko' '-x*.tar' '-x*.mod.c' vmware-server-distrib//lib/modules/source/vsock-only/linux/af_vsock.c vmware-working//lib/modules/source/vsock-only/linux/a
+--- vmware-server-distrib//lib/modules/source/vsock-only/linux/af_vsock.c   2009-10-20 18:43:28.000000000 -0700
++++ vmware-working//lib/modules/source/vsock-only/linux/af_vsock.c  2011-05-01 16:50:59.375416731 -0700
+@@ -421,7 +421,7 @@
+    VSockPacket pkt;
+ } VSockRecvPktInfo;
+
+-static DECLARE_MUTEX(registrationMutex);
++static DEFINE_SEMAPHORE(registrationMutex);
+ static int devOpenCount = 0;
+ static int vsockVmciSocketCount = 0;
+ #ifdef VMX86_TOOLS
+@@ -3149,7 +3149,7 @@
+     * a notification of an error.
+     */
+    timeout = sock_sndtimeo(sk, flags & O_NONBLOCK);
+-   compat_init_prepare_to_wait(sk->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
++   compat_init_prepare_to_wait(compat_sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+
+    while (sk->compat_sk_state != SS_CONNECTED && sk->compat_sk_err == 0) {
+       if (timeout == 0) {
+@@ -3172,7 +3172,7 @@
+          goto outWaitError;
+       }
+
+-      compat_cont_prepare_to_wait(sk->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
++      compat_cont_prepare_to_wait(compat_sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+    }
+
+    if (sk->compat_sk_err) {
+@@ -3184,7 +3184,7 @@
+    }
+
+ outWait:
+-   compat_finish_wait(sk->compat_sk_sleep, &wait, TASK_RUNNING);
++   compat_finish_wait(compat_sk_sleep(sk), &wait, TASK_RUNNING);
+ out:
+    release_sock(sk);
+    return err;
+@@ -3244,7 +3244,7 @@
+     * upon connection establishment.
+     */
+    timeout = sock_sndtimeo(listener, flags & O_NONBLOCK);
+-   compat_init_prepare_to_wait(listener->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
++   compat_init_prepare_to_wait(compat_sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
+
+    while ((connected = VSockVmciDequeueAccept(listener)) == NULL &&
+           listener->compat_sk_err == 0) {
+@@ -3260,7 +3260,7 @@
+          goto outWait;
+       }
+
+-      compat_cont_prepare_to_wait(listener->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
++      compat_cont_prepare_to_wait(compat_sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
+    }
+
+    if (listener->compat_sk_err) {
+@@ -3294,7 +3294,7 @@
+    }
+
+ outWait:
+-   compat_finish_wait(listener->compat_sk_sleep, &wait, TASK_RUNNING);
++   compat_finish_wait(compat_sk_sleep(listener), &wait, TASK_RUNNING);
+ out:
+    release_sock(listener);
+    return err;
+@@ -3391,7 +3391,7 @@
+
+    sk = sock->sk;
+
+-   poll_wait(file, sk->compat_sk_sleep, wait);
++   poll_wait(file, compat_sk_sleep(sk), wait);
+    mask = 0;
+
+    if (sk->compat_sk_err) {
+@@ -3992,7 +3992,7 @@
+     * Wait for room in the produce queue to enqueue our user's data.
+     */
+    timeout = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
+-   compat_init_prepare_to_wait(sk->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
++   compat_init_prepare_to_wait(compat_sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+
+    while (totalWritten < len) {
+       Bool sentWrote;
+@@ -4031,7 +4031,7 @@
+             goto outWait;
+          }
+
+-         compat_cont_prepare_to_wait(sk->compat_sk_sleep,
++         compat_cont_prepare_to_wait(compat_sk_sleep(sk),
+                                      &wait, TASK_INTERRUPTIBLE);
+       }
+
+@@ -4114,7 +4114,7 @@
+    if (totalWritten > 0) {
+       err = totalWritten;
+    }
+-   compat_finish_wait(sk->compat_sk_sleep, &wait, TASK_RUNNING);
++   compat_finish_wait(compat_sk_sleep(sk), &wait, TASK_RUNNING);
+ out:
+    release_sock(sk);
+    return err;
+@@ -4337,7 +4337,7 @@
+    timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
+    copied = 0;
+
+-   compat_init_prepare_to_wait(sk->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
++   compat_init_prepare_to_wait(compat_sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+
+    while ((ready = VMCIQueue_BufReady(vsk->consumeQ,
+                                       vsk->produceQ,
+@@ -4380,7 +4380,7 @@
+          goto outWait;
+       }
+
+-      compat_cont_prepare_to_wait(sk->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
++      compat_cont_prepare_to_wait(compat_sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+    }
+
+    if (sk->compat_sk_err) {
+@@ -4472,7 +4472,7 @@
+    err = copied;
+
+ outWait:
+-   compat_finish_wait(sk->compat_sk_sleep, &wait, TASK_RUNNING);
++   compat_finish_wait(compat_sk_sleep(sk), &wait, TASK_RUNNING);
+ out:
+    release_sock(sk);
+    return err;
+
